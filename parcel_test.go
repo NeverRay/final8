@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite"
 )
 
@@ -33,7 +34,7 @@ func getTestParcel() Parcel {
 func TestAddGetDelete(t *testing.T) {
 	// prepare
 	db, err := sql.Open("sqlite", "tracker.db")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 	store := NewParcelStore(db)
 	parcel := getTestParcel()
@@ -41,31 +42,33 @@ func TestAddGetDelete(t *testing.T) {
 	// add
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	id, err := store.Add(parcel)
-	assert.NoError(t, err)
-	assert.Greater(t, id, 0)
+	require.NoError(t, err)
+	require.Greater(t, id, 0)
 	parcel.Number = id
 	// get
 	// получите только что добавленную посылку, убедитесь в отсутствии ошибки
 	// проверьте, что значения всех полей в полученном объекте совпадают со значениями полей в переменной parcel
 	got, err := store.Get(id)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, parcel.Number, got.Number)
-	assert.Equal(t, parcel.Client, got.Client)
-	assert.Equal(t, parcel.Status, got.Status)
-	assert.Equal(t, parcel.Address, got.Address)
+	assert.Equal(t, parcel, got)
+
 	// delete
 	// удалите добавленную посылку, убедитесь в отсутствии ошибки
 	// проверьте, что посылку больше нельзя получить из БД
 	err = store.Delete(id)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	_, err = store.Get(id)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found")
 }
 
 // TestSetAddress проверяет обновление адреса
 func TestSetAddress(t *testing.T) {
 	// prepare
 	db, err := sql.Open("sqlite", "tracker.db")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 	store := NewParcelStore(db)
 
@@ -73,30 +76,29 @@ func TestSetAddress(t *testing.T) {
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	parcel := getTestParcel()
 	id, err := store.Add(parcel)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	parcel.Number = id
 	// set address
 	// обновите адрес, убедитесь в отсутствии ошибки
 	newAddress := "new test address"
 	err = store.SetAddress(id, newAddress)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	parcel.Address = newAddress
 
 	// check
 	// получите добавленную посылку и убедитесь, что адрес обновился
 	updated, err := store.Get(id)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, parcel.Number, updated.Number)
-	assert.Equal(t, parcel.Client, updated.Client)
-	assert.Equal(t, parcel.Status, updated.Status)
-	assert.Equal(t, newAddress, updated.Address)
+	assert.Equal(t, parcel, updated)
+
 }
 
 // TestSetStatus проверяет обновление статуса
 func TestSetStatus(t *testing.T) {
 	// prepare
 	db, err := sql.Open("sqlite", "tracker.db")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 	store := NewParcelStore(db)
 
@@ -104,29 +106,28 @@ func TestSetStatus(t *testing.T) {
 	// добавьте новую посылку в БД, убедитесь в отсутствии ошибки и наличии идентификатора
 	parcel := getTestParcel()
 	id, err := store.Add(parcel)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	parcel.Number = id
 	// set status
 	// обновите статус, убедитесь в отсутствии ошибки
 	newStatus := ParcelStatusSent
 	err = store.SetStatus(id, newStatus)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	parcel.Status = newStatus
 	// check
 	// получите добавленную посылку и убедитесь, что статус обновился
 	updated, err := store.Get(id)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, parcel.Number, updated.Number)
-	assert.Equal(t, parcel.Client, updated.Client)
-	assert.Equal(t, ParcelStatusSent, updated.Status)
-	assert.Equal(t, parcel.Address, updated.Address)
+	assert.Equal(t, parcel, updated)
+
 }
 
 // TestGetByClient проверяет получение посылок по идентификатору клиента
 func TestGetByClient(t *testing.T) {
 	// prepare
 	db, err := sql.Open("sqlite", "tracker.db")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer db.Close()
 	store := NewParcelStore(db)
 
@@ -146,7 +147,7 @@ func TestGetByClient(t *testing.T) {
 	// add
 	for i := 0; i < len(parcels); i++ {
 		id, err := store.Add(parcels[i])
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// обновляем идентификатор добавленной у посылки
 		parcels[i].Number = id
@@ -157,7 +158,7 @@ func TestGetByClient(t *testing.T) {
 
 	// get by client
 	storedParcels, err := store.GetByClient(client)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, storedParcels, 3)
 	// убедитесь в отсутствии ошибки
 	// убедитесь, что количество полученных посылок совпадает с количеством добавленных
